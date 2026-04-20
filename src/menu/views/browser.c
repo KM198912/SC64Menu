@@ -1,8 +1,10 @@
 #include <errno.h>
 #include <miniz.h>
 #include <miniz_zip.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <time.h>
 
 #include "../cart_load.h"
@@ -153,6 +155,9 @@ static void browser_list_free (menu_t *menu) {
 
     for (int i = menu->browser.entries - 1; i >= 0; i--) {
         free(menu->browser.list[i].name);
+        if (menu->browser.list[i].pretty_name) {
+            free(menu->browser.list[i].pretty_name);
+        }
     }
 
     free(menu->browser.list);
@@ -189,6 +194,7 @@ static bool load_archive (menu_t *menu) {
         }
 
         entry->name = strdup(info.m_filename);
+        entry->pretty_name = NULL;
         if (!entry->name) {
             browser_list_free(menu);
             return true;
@@ -207,6 +213,61 @@ static bool load_archive (menu_t *menu) {
     qsort(menu->browser.list, menu->browser.entries, sizeof(entry_t), compare_entry);
 
     return false;
+}
+
+static void apply_browser_pretty_titles (menu_t *menu) {
+    path_t *titles_path = path_clone_push(menu->browser.directory, "titles.txt");
+    FILE *f = fopen(path_get(titles_path), "r");
+    path_free(titles_path);
+
+    if (f == NULL) {
+        return;
+    }
+
+    struct stat st;
+    if (fstat(fileno(f), &st) || st.st_size == 0) {
+        fclose(f);
+        return;
+    }
+
+    char *buffer = malloc(st.st_size + 1);
+    if (buffer == NULL) {
+        fclose(f);
+        return;
+    }
+
+    size_t read = fread(buffer, 1, st.st_size, f);
+    fclose(f);
+    buffer[read] = '\0';
+
+    char *line = buffer;
+    while (line < buffer + read) {
+        char *next_line = strchr(line, '\n');
+        if (next_line) *next_line = '\0';
+
+        char *separator = strchr(line, '=');
+        if (separator) {
+            *separator = '\0';
+            char *filename = line;
+            char *pretty_name = separator + 1;
+
+            // Remove potential \r from windows line endings
+            char *r = strchr(pretty_name, '\r');
+            if (r) *r = '\0';
+
+            for (int i = 0; i < menu->browser.entries; i++) {
+                if (strcmp(menu->browser.list[i].name, filename) == 0) {
+                    menu->browser.list[i].pretty_name = strdup(pretty_name);
+                    break;
+                }
+            }
+        }
+
+        if (!next_line) break;
+        line = next_line + 1;
+    }
+
+    free(buffer);
 }
 
 static bool load_directory (menu_t *menu) {
@@ -243,6 +304,7 @@ static bool load_directory (menu_t *menu) {
             entry_t *entry = &menu->browser.list[menu->browser.entries++];
 
             entry->name = strdup(info.d_name);
+            entry->pretty_name = NULL;
             if (!entry->name) {
                 path_free(path);
                 browser_list_free(menu);
@@ -293,6 +355,8 @@ static bool load_directory (menu_t *menu) {
         menu->browser.selected = 0;
         menu->browser.entry = &menu->browser.list[menu->browser.selected];
     }
+
+    apply_browser_pretty_titles(menu);
 
     qsort(menu->browser.list, menu->browser.entries, sizeof(entry_t), compare_entry);
 

@@ -86,7 +86,8 @@ void ui_components_file_list_draw(entry_t *list, int entries, int selected) {
             if (entry_index >= entries) {
                 name_lengths[i] = 0;
             } else {
-                size_t length = strlen(list[entry_index].name);
+                const char *display_name = list[entry_index].pretty_name ? list[entry_index].pretty_name : list[entry_index].name;
+                size_t length = strlen(display_name);
                 name_lengths[i] = length;
                 total_length += length;
             }
@@ -131,7 +132,8 @@ void ui_components_file_list_draw(entry_t *list, int entries, int selected) {
 
             rdpq_paragraph_builder_style(style);
 
-            rdpq_paragraph_builder_span(entry->name, name_lengths[i]);
+            const char *display_name = entry->pretty_name ? entry->pretty_name : entry->name;
+            rdpq_paragraph_builder_span(display_name, name_lengths[i]);
 
             if ((entry_index + 1) >= entries) {
                 break;

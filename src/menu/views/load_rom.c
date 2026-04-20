@@ -5,12 +5,18 @@
 #include "../sound.h"
 #include "boot/boot.h"
 #include "utils/fs.h"
+#include "../ui_components/constants.h"
 #include "views.h"
+#include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 static bool show_extra_info_message = false;
 static component_boxart_t *boxart;
 static char *rom_filename = NULL;
+static char *rom_description = NULL;
+static rdpq_paragraph_t *desc_paragraph = NULL;
+static int desc_scroll_offset = 0;
 
 static int16_t current_metadata_image_index = 0;
 static const file_image_type_t metadata_image_filename_cache[] = {
@@ -93,9 +99,58 @@ static void scan_metadata_images(menu_t *menu) {
     metadata_images_scanned = true;
 }
 
-static const char *format_rom_description(menu_t *menu) {
-    char *rom_description = NULL;
+static void load_description(menu_t *menu) {
+    if (rom_description) {
+        free(rom_description);
+        rom_description = NULL;
+    }
 
+    path_t *path = path_init(menu->storage_prefix, "menu/metadata");
+    char game_code_path[50];
+
+    if (menu->load.rom_info.game_code[1] == 'E' && menu->load.rom_info.game_code[2] == 'D') {
+        char safe_title[21];
+        memcpy(safe_title, menu->load.rom_info.title, 20);
+        safe_title[20] = '\0';
+        sprintf(game_code_path, "homebrew/%s", safe_title);
+        path_push(path, game_code_path);
+    } else {
+        snprintf(game_code_path, sizeof(game_code_path), "%c/%c/%c/%c",
+            menu->load.rom_info.game_code[0],
+            menu->load.rom_info.game_code[1],
+            menu->load.rom_info.game_code[2],
+            menu->load.rom_info.game_code[3]);
+        path_push(path, game_code_path);
+
+        if (!directory_exists(path_get(path))) {
+            path_pop(path);
+        }
+    }
+
+    path_push(path, "description.txt");
+
+    if (file_exists(path_get(path))) {
+        int64_t size = file_get_size(path_get(path));
+        if (size > 0) {
+            rom_description = malloc(size + 1);
+            if (rom_description) {
+                FILE *f = fopen(path_get(path), "r");
+                if (f) {
+                    size_t read_bytes = fread(rom_description, 1, size, f);
+                    rom_description[read_bytes] = '\0';
+                    fclose(f);
+                } else {
+                    free(rom_description);
+                    rom_description = NULL;
+                }
+            }
+        }
+    }
+
+    path_free(path);
+}
+
+static const char *format_rom_description(menu_t *menu) {
     return rom_description ? rom_description : "No description available.";
 }
 
@@ -427,6 +482,19 @@ static void process (menu_t *menu) {
     } else if (menu->actions.go_left) {
         iterate_metadata_image(menu, -1);
         sound_play_effect(SFX_CURSOR);
+    } else if (menu->actions.go_down) {
+        if (desc_paragraph) {
+            int max_scroll = (desc_paragraph->bbox.y1 - desc_paragraph->bbox.y0) - 220; // 220 is visible height
+            if (desc_scroll_offset < max_scroll) {
+                desc_scroll_offset += 16;
+                if (desc_scroll_offset > max_scroll) desc_scroll_offset = max_scroll;
+            }
+        }
+    } else if (menu->actions.go_up) {
+        if (desc_scroll_offset > 0) {
+            desc_scroll_offset -= 16;
+            if (desc_scroll_offset < 0) desc_scroll_offset = 0;
+        }
     }
 }
 
@@ -441,20 +509,40 @@ static void draw (menu_t *menu, surface_t *d) {
 #endif
         ui_components_layout_draw();
 
+        const char *display_name = rom_filename;
+        if (menu->browser.entry && menu->browser.entry->pretty_name && strcmp(menu->browser.entry->name, rom_filename) == 0) {
+            display_name = menu->browser.entry->pretty_name;
+        }
+
         ui_components_main_text_draw(
             STL_DEFAULT,
             ALIGN_CENTER, VALIGN_TOP,
             "%s\n",
-            rom_filename
+            display_name
         );
 
-        ui_components_main_text_draw(
-            STL_DEFAULT,
-            ALIGN_LEFT, VALIGN_TOP,
-            "\n\n\t%.300s\n",
-            format_rom_description(menu)
-            
-        );
+
+        if (desc_paragraph) {
+            rdpq_set_scissor(
+                VISIBLE_AREA_X0 + TEXT_MARGIN_HORIZONTAL, 
+                VISIBLE_AREA_Y0 + 40, 
+                VISIBLE_AREA_X1 - TEXT_MARGIN_HORIZONTAL, 
+                VISIBLE_AREA_Y0 + 260
+            );
+            rdpq_paragraph_render(
+                desc_paragraph, 
+                VISIBLE_AREA_X0 + TEXT_MARGIN_HORIZONTAL + 24, // Tab indent approx
+                VISIBLE_AREA_Y0 + 40 - desc_scroll_offset
+            );
+            rdpq_set_scissor(0, 0, display_get_width(), display_get_height());
+        } else {
+            ui_components_main_text_draw(
+                STL_DEFAULT,
+                ALIGN_LEFT, VALIGN_TOP,
+                "\n\n\t%.300s\n",
+                format_rom_description(menu)
+            );
+        }
 
         ui_components_main_text_draw(
             STL_DEFAULT,
@@ -613,10 +701,21 @@ static void deinit (void) {
     boxart = NULL;
     current_metadata_image_index = 0;
     metadata_images_scanned = false;
+    desc_scroll_offset = 0;
+
+    if (desc_paragraph) {
+        rdpq_paragraph_free(desc_paragraph);
+        desc_paragraph = NULL;
+    }
 
     // Clear availability cache
     for (uint16_t i = 0; i < metadata_image_filename_cache_length; i++) {
         metadata_image_available[i] = false;
+    }
+
+    if (rom_description) {
+        free(rom_description);
+        rom_description = NULL;
     }
 }
 
@@ -658,6 +757,18 @@ void view_load_rom_init (menu_t *menu) {
     if (!menu->settings.rom_autoload_enabled) {
 #endif
         current_metadata_image_index = 0;
+        load_description(menu);
+        
+        if (rom_description) {
+            int paragraph_nbytes = strlen(rom_description);
+            desc_paragraph = rdpq_paragraph_build(&(rdpq_textparms_t) {
+                .width = VISIBLE_AREA_WIDTH - (TEXT_MARGIN_HORIZONTAL * 4) - 40, // Account for potential indent
+                .align = ALIGN_LEFT,
+                .wrap = WRAP_WORD,
+                .line_spacing = TEXT_LINE_SPACING_ADJUST,
+            }, FNT_DEFAULT, rom_description, &paragraph_nbytes);
+        }
+
         boxart = ui_components_boxart_init(menu->storage_prefix, menu->load.rom_info.game_code, menu->load.rom_info.title, IMAGE_BOXART_FRONT);
         ui_components_context_menu_init(&options_context_menu);
 #ifdef FEATURE_AUTOLOAD_ROM_ENABLED

@@ -47,6 +47,14 @@ The current state of support is:
 * N64 ROM fast reboot option (on reset).
 * ROM history and favorites.  
 
+## KM Edition Enhanced Features
+This fork introduces several premium features designed to professionalize the SC64 experience:
+
+*   **"Pretty Titles" Support**: Decouples display names from technical filenames. Uses a managed `titles.txt` index to show clean, human-readable game titles while maintaining 100% ROM loading stability.
+*   **Intelligent Metadata Pipeline**: Enhanced scraping logic that scourers TheGamesDB for the highest-quality records, ensuring full mission briefings and narrative descriptions.
+*   **Scrollable Mission Briefings**: Long game descriptions can now be navigated using the **D-Pad Up/Down**, allowing for full mission context without cluttering the UI.
+*   **SC64 Manager Integration**: Fully compatible with the [SC64 Manager](https://github.com/KM198912/SC64Manager) desktop tool for automated "Pretty Title" generation and metadata deployment.
+
 Experimental (beta):
 * ROM Datel code editor.
 * Zip archive browsing and file extraction.

@@ -128,6 +128,16 @@ static void menu_init (boot_params_t *boot_params) {
     path_free(path);
 
     sound_use_sfx(menu->settings.soundfx_enabled);
+    
+    mp3player_init();
+    char bgm_path[1024];
+    sprintf(bgm_path, "%s/menu/bg.mp3", menu->storage_prefix);
+    if (file_exists(bgm_path)) {
+        if (mp3player_load(bgm_path) == MP3PLAYER_OK) {
+            mp3player_mute(false);
+            mp3player_play();
+        }
+    }
 
     menu->browser.directory = path_init(menu->storage_prefix, menu->settings.default_directory);
     if (!directory_exists(path_get(menu->browser.directory))) {
@@ -160,6 +170,7 @@ static void menu_deinit (menu_t *menu) {
     display_close();
 
     sound_deinit();
+    mp3player_deinit();
 
     rdpq_close();
     rspq_close();
@@ -260,6 +271,13 @@ void menu_run (boot_params_t *boot_params) {
         }
 
         sound_poll();
+
+        if (mp3player_is_playing()) {
+            mp3player_process();
+            if (mp3player_is_finished()) {
+                mp3player_play(); // Looping logic
+            }
+        }
 
         png_decoder_poll();
 

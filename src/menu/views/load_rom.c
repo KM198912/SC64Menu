@@ -13,6 +13,8 @@
 
 static bool show_extra_info_message = false;
 static component_boxart_t *boxart;
+#define MAX_DESCRIPTION_LEN 2048
+
 static char *rom_filename = NULL;
 static char *rom_description = NULL;
 static rdpq_paragraph_t *desc_paragraph = NULL;
@@ -132,6 +134,10 @@ static void load_description(menu_t *menu) {
     if (file_exists(path_get(path))) {
         int64_t size = file_get_size(path_get(path));
         if (size > 0) {
+            // Defensive cap to prevent rdpq paragraph height assertions (ycur < 2048)
+            if (size > MAX_DESCRIPTION_LEN) {
+                size = MAX_DESCRIPTION_LEN;
+            }
             rom_description = malloc(size + 1);
             if (rom_description) {
                 FILE *f = fopen(path_get(path), "r");
@@ -525,14 +531,14 @@ static void draw (menu_t *menu, surface_t *d) {
         if (desc_paragraph) {
             rdpq_set_scissor(
                 VISIBLE_AREA_X0 + TEXT_MARGIN_HORIZONTAL, 
-                VISIBLE_AREA_Y0 + 40, 
+                VISIBLE_AREA_Y0 + 44, // Tight baseline (Manager Tool now handles top padding)
                 VISIBLE_AREA_X1 - TEXT_MARGIN_HORIZONTAL, 
-                VISIBLE_AREA_Y0 + 260
+                VISIBLE_AREA_Y1 - 208  // Decreased to prevent leaking into footer metadata
             );
             rdpq_paragraph_render(
                 desc_paragraph, 
-                VISIBLE_AREA_X0 + TEXT_MARGIN_HORIZONTAL + 24, // Tab indent approx
-                VISIBLE_AREA_Y0 + 40 - desc_scroll_offset
+                VISIBLE_AREA_X0 + TEXT_MARGIN_HORIZONTAL + 24, 
+                VISIBLE_AREA_Y0 + 44 - desc_scroll_offset // Sync with scissor top
             );
             rdpq_set_scissor(0, 0, display_get_width(), display_get_height());
         } else {

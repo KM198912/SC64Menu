@@ -353,7 +353,7 @@ mp3player_err_t mp3player_toggle (void) {
  * @param mute True to mute, false to unmute.
  */
 void mp3player_mute (bool mute) {
-    float volume = mute ? 0.0f : 1.0f;
+    float volume = mute ? 0.0f : 0.7f; // Default balanced volume for BGM
     mixer_ch_set_vol(SOUND_MP3_PLAYER_CHANNEL, volume, volume);
 }
 

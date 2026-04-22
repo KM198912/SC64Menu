@@ -528,13 +528,17 @@ static void process (menu_t *menu) {
     int scroll_speed = menu->actions.go_fast ? 10 : 1;
 
     if (menu->browser.entries > 1) {
-        if (menu->actions.go_up) {
+        bool carousel_active = menu->settings.carousel_enabled && is_memory_expanded();
+        bool nav_prev = carousel_active ? menu->actions.go_left : menu->actions.go_up;
+        bool nav_next = carousel_active ? menu->actions.go_right : menu->actions.go_down;
+
+        if (nav_prev) {
             menu->browser.selected -= scroll_speed;
             if (menu->browser.selected < 0) {
                 menu->browser.selected = 0;
             }
             sound_play_effect(SFX_CURSOR);
-        } else if (menu->actions.go_down) {
+        } else if (nav_next) {
             menu->browser.selected += scroll_speed;
             if (menu->browser.selected >= menu->browser.entries) {
                 menu->browser.selected = menu->browser.entries - 1;
@@ -542,6 +546,13 @@ static void process (menu_t *menu) {
             sound_play_effect(SFX_CURSOR);
         }
         menu->browser.entry = &menu->browser.list[menu->browser.selected];
+    }
+
+    // Smooth carousel animation
+    float target_offset = (float)menu->browser.selected;
+    menu->browser.carousel_offset += (target_offset - menu->browser.carousel_offset) * 0.2f;
+    if (abs(menu->browser.carousel_offset - target_offset) < 0.01f) {
+        menu->browser.carousel_offset = target_offset;
     }
 
     if (menu->actions.enter && menu->browser.entry) {
@@ -603,10 +614,10 @@ static void process (menu_t *menu) {
     } else if (menu->actions.settings) {
         ui_components_context_menu_show(&settings_context_menu);
         sound_play_effect(SFX_SETTING);
-    } else if (menu->actions.go_right) {
+    } else if (menu->actions.go_right && !(menu->settings.carousel_enabled && is_memory_expanded())) {
         menu->next_mode = MENU_MODE_HISTORY;
         sound_play_effect(SFX_CURSOR);
-    } else if (menu->actions.go_left) {
+    } else if (menu->actions.go_left && !(menu->settings.carousel_enabled && is_memory_expanded())) {
         menu->next_mode = MENU_MODE_FAVORITE;
         sound_play_effect(SFX_CURSOR);
     }
@@ -617,11 +628,13 @@ static void draw (menu_t *menu, surface_t *d) {
 
     ui_components_background_draw();
 
-    ui_components_tabs_common_draw(0);
-
-    ui_components_layout_draw_tabbed();
-
-    ui_components_file_list_draw(menu->browser.list, menu->browser.entries, menu->browser.selected);
+    if (menu->settings.carousel_enabled && is_memory_expanded()) {
+        ui_components_carousel_draw(menu);
+    } else {
+        ui_components_tabs_common_draw(0);
+        ui_components_layout_draw_tabbed();
+        ui_components_file_list_draw(menu->browser.list, menu->browser.entries, menu->browser.selected);
+    }
 
     const char *action = NULL;
 
@@ -655,20 +668,26 @@ static void draw (menu_t *menu, surface_t *d) {
         menu->browser.entries == 0 ? STL_GRAY : STL_DEFAULT
     );
 
+    bool carousel_active = menu->settings.carousel_enabled && is_memory_expanded();
+    const char *fast_hint = carousel_active ? "C-◀▶ Fast Scroll" : "C-▼▲ Fast Scroll";
+    const char *nav_hint = carousel_active ? "◀ Navigate ▶" : "◀ Tabs ▶";
+
     if (menu->current_time >= 0) {
         ui_components_actions_bar_text_draw(
             STL_DEFAULT,
             ALIGN_CENTER, VALIGN_TOP,
-            "C-▼▲ Fast Scroll | ◀ Tabs ▶ \n"
+            "%s | %s \n"
             "%s",
+            fast_hint, nav_hint,
             ctime(&menu->current_time)
         );
     } else {
         ui_components_actions_bar_text_draw(
             STL_DEFAULT,
             ALIGN_CENTER, VALIGN_TOP,
-            "C-▼▲ Fast Scroll | ◀ Tabs ▶ \n"
-            "\n"
+            "%s | %s \n"
+            "\n",
+            fast_hint, nav_hint
         );
     }
 

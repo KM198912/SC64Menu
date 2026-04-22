@@ -35,6 +35,11 @@ static void draw (menu_t *menu, surface_t *d) {
         ALIGN_LEFT, VALIGN_TOP,
         "\n"
         "\n"
+        "Enhanced Version by Kevin Meerts\n"
+        "New Features:\n"
+        "Carousel UI, Rom Descriptions, Pretty Titles\n"
+        "\n"
+        "\n"
         "Menu version: %s\n"
         "Build timestamp: %s\n"
         "\n"

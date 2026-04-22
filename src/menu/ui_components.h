@@ -198,6 +198,13 @@ void ui_components_background_draw(void);
 void ui_components_file_list_draw(entry_t *list, int entries, int selected);
 
 /**
+ * @brief Draw the carousel component.
+ * 
+ * @param menu Pointer to the menu structure.
+ */
+void ui_components_carousel_draw(menu_t *menu);
+
+/**
  * @brief Context menu structure.
  */
 typedef struct component_context_menu {

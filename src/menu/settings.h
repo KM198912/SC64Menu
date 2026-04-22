@@ -69,6 +69,9 @@ typedef struct {
     /** @brief A filename of the autoloaded ROM */
     char *rom_autoload_filename;
 
+    /** @brief Enable high-fidelity carousel view in the browser */
+    bool carousel_enabled;
+
 } settings_t;
 
 

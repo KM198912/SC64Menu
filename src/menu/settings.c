@@ -27,6 +27,7 @@ static settings_t init = {
 #else
     .rom_fast_reboot_enabled = false,
 #endif    
+    .carousel_enabled = true,
     /* Beta feature flags (should always init to default) */
     .show_browser_file_extensions = true,
     .show_browser_rom_tags = true,
@@ -79,6 +80,7 @@ void settings_load (settings_t *settings) {
     settings->show_browser_rom_tags = mini_get_bool(ini, "menu", "show_browser_rom_tags", init.show_browser_rom_tags);
     settings->bgm_enabled = mini_get_bool(ini, "menu_beta_flag", "bgm_enabled", init.bgm_enabled);
     settings->rumble_enabled = mini_get_bool(ini, "menu_beta_flag", "rumble_enabled", init.rumble_enabled);
+    settings->carousel_enabled = mini_get_bool(ini, "menu", "carousel_menu", init.carousel_enabled);
 
     mini_free(ini);
 }
@@ -104,6 +106,7 @@ void settings_save (settings_t *settings) {
 #else
     mini_set_bool(ini, "menu", "reboot_rom_enabled", settings->rom_fast_reboot_enabled);
 #endif
+    mini_set_bool(ini, "menu", "carousel_menu", settings->carousel_enabled);
 
     /* Beta feature flags, they should not save until production ready! */
     // mini_set_bool(ini, "menu", "show_browser_file_extensions", settings->show_browser_file_extensions);

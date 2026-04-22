@@ -127,6 +127,7 @@ typedef struct {
         entry_t *entry;
         int32_t selected;
         path_t* select_file;
+        float carousel_offset;
     } browser;
 
     struct {

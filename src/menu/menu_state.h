@@ -99,6 +99,7 @@ typedef struct {
     char *error_message;
     flashcart_err_t flashcart_err;
 
+    int startup_timer;
     time_t current_time;
 
     struct {

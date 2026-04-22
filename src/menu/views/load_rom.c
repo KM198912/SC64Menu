@@ -741,11 +741,12 @@ void view_load_rom_init (menu_t *menu) {
         } else {
             menu->load.rom_path = path_clone_push(menu->browser.directory, menu->browser.entry->name);
         }
-
-        rom_filename = path_last_get(menu->load.rom_path);
 #ifdef FEATURE_AUTOLOAD_ROM_ENABLED
     }
 #endif 
+
+    // Always ensure rom_filename is set from the path, even for autoload
+    rom_filename = path_last_get(menu->load.rom_path);
 
     if (show_extra_info_message) {
         show_extra_info_message = false;

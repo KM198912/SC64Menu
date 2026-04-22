@@ -51,23 +51,29 @@ void settings_load (settings_t *settings) {
 
     settings->schema_revision = mini_get_int(ini, "menu", "schema_revision", init.schema_revision);
     settings->first_run = mini_get_bool(ini, "menu", "first_run", init.first_run);
-    settings->pal60_enabled = mini_get_bool(ini, "menu", "pal60", init.pal60_enabled); // TODO: consider changing file setting name
+    settings->pal60_enabled = mini_get_bool(ini, "menu", "pal60", init.pal60_enabled);
     settings->pal60_compatibility_mode = mini_get_bool(ini, "menu", "pal60_compatibility_mode", init.pal60_compatibility_mode);
     settings->force_progressive_scan = mini_get_bool(ini, "menu", "force_progressive_scan", init.force_progressive_scan);
     settings->show_protected_entries = mini_get_bool(ini, "menu", "show_protected_entries", init.show_protected_entries);
-    settings->default_directory = strdup(mini_get_string(ini, "menu", "default_directory", init.default_directory));
+
+    const char *tmp_dir = mini_get_string(ini, "menu", "default_directory", init.default_directory);
+    settings->default_directory = strdup(tmp_dir ? tmp_dir : init.default_directory);
+
     settings->use_saves_folder = mini_get_bool(ini, "menu", "use_saves_folder", init.use_saves_folder);
     settings->show_saves_folder = mini_get_bool(ini, "menu", "show_saves_folder", init.show_saves_folder);
     settings->soundfx_enabled = mini_get_bool(ini, "menu", "soundfx_enabled", init.soundfx_enabled);
     
 #ifdef FEATURE_AUTOLOAD_ROM_ENABLED
     settings->rom_autoload_enabled = mini_get_bool(ini, "menu", "autoload_rom_enabled", init.rom_autoload_enabled);
-    settings->rom_autoload_path = strdup(mini_get_string(ini, "autoload", "rom_path", init.rom_autoload_path));
-    settings->rom_autoload_filename = strdup(mini_get_string(ini, "autoload", "rom_filename", init.rom_autoload_filename));
+    const char *tmp_path = mini_get_string(ini, "autoload", "rom_path", init.rom_autoload_path);
+    settings->rom_autoload_path = strdup(tmp_path ? tmp_path : init.rom_autoload_path);
+    const char *tmp_file = mini_get_string(ini, "autoload", "rom_filename", init.rom_autoload_filename);
+    settings->rom_autoload_filename = strdup(tmp_file ? tmp_file : init.rom_autoload_filename);
     settings->loading_progress_bar_enabled = mini_get_bool(ini, "menu", "loading_progress_bar_enabled", init.loading_progress_bar_enabled);
 #else
     settings->rom_fast_reboot_enabled = mini_get_bool(ini, "menu", "reboot_rom_enabled", init.rom_fast_reboot_enabled);
 #endif
+
     /* Beta feature flags, they might not be in the file */
     settings->show_browser_file_extensions = mini_get_bool(ini, "menu", "show_browser_file_extensions", init.show_browser_file_extensions);
     settings->show_browser_rom_tags = mini_get_bool(ini, "menu", "show_browser_rom_tags", init.show_browser_rom_tags);
